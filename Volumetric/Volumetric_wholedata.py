@@ -25,16 +25,16 @@ images = [d.pixel_array for d in dicoms]
 #image is sparse in wavelet domain, but initially aquiared int he fourier domain
 
 #lets get fourier images using the fourier operator
-#zero pad the images to all be 512x512
-# Zero pad images to 512x512
-target_size = 512
-padded_images = []
+
+target_size = 256
+#resize images to target size
+resized_images = []
 for img in images:
-    padded = np.zeros((target_size, target_size), dtype=img.dtype)
-    h, w = img.shape
-    padded[:h, :w] = img
-    padded_images.append(padded)
-images = padded_images
+    img = Image.fromarray(img)
+    img = img.resize((target_size, target_size))
+    resized_images.append(np.array(img))
+images = resized_images
+
 #add a black image to the end of the stack to make it even, since the wavelet transform requires an even number of images
 images.append(np.zeros((target_size, target_size), dtype=images[0].dtype))
 
@@ -45,13 +45,12 @@ print("image shape:", images[0].shape)
 Fop = pylops.signalprocessing.FFT2D(dims=(ny, nx))
 Fop_3D = pylops.signalprocessing.FFTND(dims=(len(images), ny, nx))
 Wop = pylops.signalprocessing.DWT(dims=ny*nx, wavelet='db6', level=1)
-Wop2D = pylops.signalprocessing.DWT2D(dims=(ny, nx), wavelet='db10', level=4)
-Wop3D = pylops.signalprocessing.DWTND(dims=(nl, ny, nx), wavelet='haar', level=5)
+Wop3D = pylops.signalprocessing.DWTND(dims=(nl, ny, nx), wavelet='haar', level=3, axes=(0, 1, 2), dtype=np.complex128)
 
 
 #data still as 2D transfrom from MRI machine, treated as volumetric
 #made a 3d stack of the 2d images
-stack = np.stack(images, axis=0)
+stack = np.stack(images, axis=0)                                                                                                                  
 kspace = Fop_3D * stack
 print("kspace shape:", kspace.shape)
 
@@ -67,13 +66,13 @@ ps = ps/sum(ps)
 linesample = np.random.choice(line_length,size = nlinesub,p = ps,replace=False)
 linesample.sort()
 samples= []
-for i in range(ny):
+for i in range(ny*nl):
     samples.append([int(x) + line_length*i for x in linesample])
 samples = np.asarray(samples, dtype=np.int32)
 samples = samples.flatten()
 samples = list(samples)
 #restriction operator selects samples not to take, so we need to take the complement of the samples we want to take
-all_samples = set(range(ny * nx))
+all_samples = set(range(ny * nx * nl))
 samples = list(all_samples - set(samples))
 print(len(samples))
 
@@ -84,7 +83,7 @@ print(len(samples))
 
 #restriction obertor selects samples from the fourier domain
 Rop = pylops.Restriction( nl *ny * nx, samples, axis=-1, dtype=np.complex128)
-#our sparcifying tarnsform is the 2D wavelet transform
+#our sparcifying tarnsform is the 3D wavelet transform
 Sop = Wop3D
 
 #we will seek to solve the analysis problem: given as
@@ -95,13 +94,12 @@ Sop = Wop3D
 
 Op = Rop * Fop_3D
 #forward operator generated
-y = Rop * np.asarray(kspace).ravel()
+y = Rop * np.asarray(kspace).ravel('K')
 #measuremnents in the fourier domain generated in (nl*nx*samples,) shape
 print("y shape:", y.shape)
-
 #we can now use the FISTA algorithm to solve the optimization problem
 epsilon = 0.01
-x0 = np.zeros((nl ,ny, nx), dtype=np.complex128).ravel()
+x0 = np.zeros((nl ,ny, nx), dtype=np.complex128).ravel('K')
 #we will solve the problem for each image in the stack
 recons = []
 #print shapes of all the variables
@@ -115,11 +113,12 @@ print("x0 shape:", x0.shape)
 #     recons.append(x.reshape((ny, nx)))
 
 #reconstruct the whole stack at once
-(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=100, SOp=Sop, tol=1e-6)
+(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=150, SOp=Sop, tol=1e-6,show=True)
 #un ravel the reconstructed stack
 recons = x.reshape((nl, ny, nx))
 print("reconstruction complete")
 print("reconstructed image shape:", recons[0].shape)
+
 
 #save a comparison of the original and reconstructed image for each slice in the stack to a folder
 output_folder = "Volumetric/Reconstructed_images_whole"
@@ -134,3 +133,5 @@ for i in range(len(recons)):
     axs[1].set_title('Reconstructed Image')
     axs[1].axis('off')
     plt.savefig(f"{output_folder}/comparison_{i}.png")
+    plt.close(fig)
+    print(f"Saved comparison image for slice {i} to {output_folder}/comparison_{i}.png")
