@@ -45,7 +45,7 @@ print("image shape:", images[0].shape)
 Fop = pylops.signalprocessing.FFT2D(dims=(ny, nx))
 Fop_3D = pylops.signalprocessing.FFTND(dims=(len(images), ny, nx))
 Wop = pylops.signalprocessing.DWT(dims=ny*nx, wavelet='db6', level=1)
-Wop3D = pylops.signalprocessing.DWTND(dims=(nl, ny, nx), wavelet='haar', level=3, axes=(0, 1, 2), dtype=np.complex128)
+Wop3D = pylops.signalprocessing.DWTND(dims=(nl, ny, nx), wavelet='haar', level=5, axes=(0, 1, 2), dtype=np.complex128)
 
 
 #data still as 2D transfrom from MRI machine, treated as volumetric
@@ -58,7 +58,7 @@ print("kspace shape:", kspace.shape)
 #our image comes to us undersampled in the fourier domain, so we need to use the fourier operator as our forward model
 #we can use the wavelet transform as our sparsifying transform, and then use the inverse wavelet transform to reconstruct the image from the wavelet coefficients
 
-perc_subsampling = 0.50
+perc_subsampling = 0.25
 line_length = nx
 nlinesub = int(np.round(line_length * perc_subsampling))
 ps = stats.norm.pdf(np.arange(line_length),loc = line_length/2,scale = 60)
@@ -113,7 +113,7 @@ print("x0 shape:", x0.shape)
 #     recons.append(x.reshape((ny, nx)))
 
 #reconstruct the whole stack at once
-(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=150, SOp=Sop, tol=1e-6,show=True)
+(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=200, SOp=Sop, tol=1e-6,show=True)
 #un ravel the reconstructed stack
 recons = x.reshape((nl, ny, nx))
 print("reconstruction complete")
@@ -134,4 +134,6 @@ for i in range(len(recons)):
     axs[1].axis('off')
     plt.savefig(f"{output_folder}/comparison_{i}.png")
     plt.close(fig)
+    plt.imsave(f"{output_folder}/reconstructed_{i}.bmp", np.abs(recons[i]), cmap='gray')
+    plt.imsave(f"{output_folder}/original_{i}.bmp", images[i], cmap='gray')
     print(f"Saved comparison image for slice {i} to {output_folder}/comparison_{i}.png")

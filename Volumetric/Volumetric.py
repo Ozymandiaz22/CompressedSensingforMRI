@@ -48,7 +48,7 @@ kspace = [Fop * i for i in images]
 #our image comes to us undersampled in the fourier domain, so we need to use the fourier operator as our forward model
 #we can use the wavelet transform as our sparsifying transform, and then use the inverse wavelet transform to reconstruct the image from the wavelet coefficients
 
-perc_subsampling = 0.50
+perc_subsampling = 0.25
 line_length = nx
 nlinesub = int(np.round(line_length * perc_subsampling))
 ps = stats.norm.pdf(np.arange(line_length),loc = line_length/2,scale = 60)
