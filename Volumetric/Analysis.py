@@ -30,6 +30,13 @@ for i in range(num_slices):
 recons_snr = []
 originals_snr = []
 
+plt.imshow(recons[17], cmap='gray')
+plt.axhline(y=207,xmin=0,xmax=49/255, color='r', linestyle='-')
+plt.axhline(y=255,xmin=0,xmax=49/255, color='r', linestyle='-')
+plt.axvline(x=0,ymin=0,ymax=48/255, color='r', linestyle='-')
+plt.axvline(x=49,ymin=0,ymax=48/255, color='r', linestyle='-')
+plt.title('Reconstructed Image with SNR Region Highlighted')
+plt.show()
 
 for i in range(len(recons)):
     recons_snr.append(recons[i][-49:-1,0:49])

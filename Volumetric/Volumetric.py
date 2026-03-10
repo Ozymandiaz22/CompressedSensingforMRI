@@ -24,16 +24,14 @@ images = [d.pixel_array for d in dicoms]
 #image is sparse in wavelet domain, but initially aquiared int he fourier domain
 
 #lets get fourier images using the fourier operator
-#zero pad the images to all be 512x512
-# Zero pad images to 512x512
-target_size = 512
-padded_images = []
+
+target_size = 256
+resized_images = []
 for img in images:
-    padded = np.zeros((target_size, target_size), dtype=img.dtype)
-    h, w = img.shape
-    padded[:h, :w] = img
-    padded_images.append(padded)
-images = padded_images
+    img = Image.fromarray(img)
+    img = img.resize((target_size, target_size))
+    resized_images.append(np.array(img))
+images = resized_images
 
 nx, ny = images[0].shape
 print("image shape:", images[0].shape)

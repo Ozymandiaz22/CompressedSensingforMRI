@@ -113,7 +113,7 @@ print("x0 shape:", x0.shape)
 #     recons.append(x.reshape((ny, nx)))
 
 #reconstruct the whole stack at once
-(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=200, SOp=Sop, tol=1e-6,show=True)
+(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=500, SOp=Sop, tol=1e-6,show=True)
 #un ravel the reconstructed stack
 recons = x.reshape((nl, ny, nx))
 print("reconstruction complete")
