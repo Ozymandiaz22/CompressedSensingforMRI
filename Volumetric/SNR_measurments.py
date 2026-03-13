@@ -27,8 +27,11 @@ for i in range(num_slices):
     file.close()
 
 #for reconstructed and original image select a 25*25 catch in the bottom left corner of the image
-recons_snr = []
-originals_snr = []
+recons_noise = []
+originals_noise = []
+#define a signal function to calculate the mean signal as a sphere in the centre of the image
+recons_signal = []
+originals_signal = []
 
 plt.imshow(recons[17], cmap='gray')
 plt.axhline(y=207,xmin=0,xmax=49/255, color='r', linestyle='-')
@@ -39,11 +42,11 @@ plt.title('Reconstructed Image with SNR Region Highlighted')
 plt.show()
 
 for i in range(len(recons)):
-    recons_snr.append(recons[i][-49:-1,0:49])
-    originals_snr.append(originals[i][-49:-1,0:49])
+    recons_noise.append(recons[i][-49:-1,0:49])
+    originals_noise.append(originals[i][-49:-1,0:49])
 
-rms_recons = [np.sqrt(np.sum(x ** 2)/x.size) for x in recons_snr]
-rms_originals = [np.sqrt(np.sum(x ** 2)/x.size) for x in originals_snr]
+rms_recons = [np.sqrt(np.sum(x ** 2)/x.size) for x in recons_noise]
+rms_originals = [np.sqrt(np.sum(x ** 2)/x.size) for x in originals_noise]
 
 for i in range(len(recons)):
     print(f"Recons RMS for slice {i}: {rms_recons[i]}")

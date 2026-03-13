@@ -8,23 +8,10 @@ from PIL import Image
 import pydicom as dicom
 import os
 
-import Live_parameters
-
-
-
-####Parameters to set:
-#folderpath to the dicom images
-folderpath = Live_parameters.folderpath
-#Image size to resize to
-target_size = Live_parameters.target_size
-##3D wavelet transform parameters
-Wavelet_3D = Live_parameters.Wavelet_3D
-Wavelet_3D_level = Live_parameters.Wavelet_3D_level
-Percent_sampled = Live_parameters.Percent_sampled
-
 plt.close('all')
 #this file is to do volumetric reconstruction with total variation regularization
 #find path of all dicom files in the folder
+folderpath = "Volumetric/knee_mri_clinical_seq_batch2/1FB_1001820591____1FB,_3331562518/study_2f43b031/MR4_53c76c27"
 files = [str(folderpath + "/" + f  ) for f in os.listdir(folderpath) if f.endswith('.dcm')]
 dicoms = [dicom.dcmread(x) for x in files]
 images = [d.pixel_array for d in dicoms]
@@ -39,6 +26,7 @@ images = [d.pixel_array for d in dicoms]
 
 #lets get fourier images using the fourier operator
 
+target_size = 256
 #resize images to target size
 resized_images = []
 for img in images:
@@ -57,7 +45,7 @@ print("image shape:", images[0].shape)
 Fop = pylops.signalprocessing.FFT2D(dims=(ny, nx))
 Fop_3D = pylops.signalprocessing.FFTND(dims=(len(images), ny, nx))
 Wop = pylops.signalprocessing.DWT(dims=ny*nx, wavelet='db6', level=1)
-Wop3D = pylops.signalprocessing.DWTND(dims=(nl, ny, nx), wavelet=Wavelet_3D, level=Wavelet_3D_level, axes=(0, 1, 2), dtype=np.complex128)
+Wop3D = pylops.signalprocessing.DWTND(dims=(nl, ny, nx), wavelet='haar', level=5, axes=(0, 1, 2), dtype=np.complex128)
 
 
 #data still as 2D transfrom from MRI machine, treated as volumetric
@@ -70,7 +58,7 @@ print("kspace shape:", kspace.shape)
 #our image comes to us undersampled in the fourier domain, so we need to use the fourier operator as our forward model
 #we can use the wavelet transform as our sparsifying transform, and then use the inverse wavelet transform to reconstruct the image from the wavelet coefficients
 
-perc_subsampling = 1 - Percent_sampled
+perc_subsampling = 0.25
 line_length = nx
 nlinesub = int(np.round(line_length * perc_subsampling))
 ps = stats.norm.pdf(np.arange(line_length),loc = line_length/2,scale = 60)
@@ -110,7 +98,7 @@ y = Rop * np.asarray(kspace).ravel('K')
 #measuremnents in the fourier domain generated in (nl*nx*samples,) shape
 print("y shape:", y.shape)
 #we can now use the FISTA algorithm to solve the optimization problem
-epsilon = Live_parameters.Regularization_parameter
+epsilon = 0.01
 x0 = np.zeros((nl ,ny, nx), dtype=np.complex128).ravel('K')
 #we will solve the problem for each image in the stack
 recons = []
@@ -125,7 +113,7 @@ print("x0 shape:", x0.shape)
 #     recons.append(x.reshape((ny, nx)))
 
 #reconstruct the whole stack at once
-(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=Live_parameters.Iteration_number, SOp=Sop, tol=Live_parameters.Tolerance,show=True)
+(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=500, SOp=Sop, tol=1e-6,show=True)
 #un ravel the reconstructed stack
 recons = x.reshape((nl, ny, nx))
 print("reconstruction complete")

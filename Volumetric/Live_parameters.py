@@ -1,0 +1,10 @@
+import Edit_Setup_parametes
+
+folderpath = Edit_Setup_parametes.folderpath
+target_size = Edit_Setup_parametes.target_size
+Wavelet_3D = Edit_Setup_parametes.Wavelet_3D
+Wavelet_3D_level = Edit_Setup_parametes.Wavelet_3D_level
+Percent_sampled = Edit_Setup_parametes.Percent_sampled
+Regularization_parameter = Edit_Setup_parametes.Regularization_parameter
+Iteration_number = Edit_Setup_parametes.Iteration_number
+Tolerance = Edit_Setup_parametes.Tolerance
