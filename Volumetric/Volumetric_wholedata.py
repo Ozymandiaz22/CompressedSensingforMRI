@@ -21,6 +21,10 @@ target_size = Live_parameters.target_size
 Wavelet_3D = Live_parameters.Wavelet_3D
 Wavelet_3D_level = Live_parameters.Wavelet_3D_level
 Percent_sampled = Live_parameters.Percent_sampled
+Iteration_number = Live_parameters.Iteration_number
+Regularization_Parameter = Live_parameters.Regularization_parameter
+Tolerance = Live_parameters.Tolerance
+Output_File = Live_parameters.Output_file
 
 plt.close('all')
 #this file is to do volumetric reconstruction with total variation regularization
@@ -47,9 +51,11 @@ for img in images:
     resized_images.append(np.array(img))
 images = resized_images
 
-#add a black image to the end of the stack to make it even, since the wavelet transform requires an even number of images
-images.append(np.zeros((target_size, target_size), dtype=images[0].dtype))
-
+#find the next power of 2 from the length of the array
+#find the next power of two
+len2pow = int(2**np.ceil(np.log2(len(images))))
+for i in range((len2pow - len(images))):
+    images.append(np.zeros((target_size, target_size), dtype=images[0].dtype))
 nx, ny = images[0].shape
 nl = len(images)
 print("image shape:", images[0].shape)
@@ -93,6 +99,15 @@ print(len(samples))
 
 #undersmaspled k_space genrated
 
+##print the sampling mask as an image
+sampling_mask = np.ones((nl, ny, nx), dtype=np.float32)
+for s in samples:
+    sampling_mask[s // (ny * nx), (s % (ny * nx)) // nx, s % nx] = 0
+plt.imshow(sampling_mask[0], cmap='gray')
+plt.title('Sampling Mask for First Slice')
+plt.imsave(f"Volumetric/sampling_mask.png", sampling_mask[0], cmap='gray')
+plt.close()
+
 #restriction obertor selects samples from the fourier domain
 Rop = pylops.Restriction( nl *ny * nx, samples, axis=-1, dtype=np.complex128)
 #our sparcifying tarnsform is the 3D wavelet transform
@@ -110,7 +125,7 @@ y = Rop * np.asarray(kspace).ravel('K')
 #measuremnents in the fourier domain generated in (nl*nx*samples,) shape
 print("y shape:", y.shape)
 #we can now use the FISTA algorithm to solve the optimization problem
-epsilon = Live_parameters.Regularization_parameter
+epsilon = Regularization_Parameter
 x0 = np.zeros((nl ,ny, nx), dtype=np.complex128).ravel('K')
 #we will solve the problem for each image in the stack
 recons = []
@@ -125,7 +140,7 @@ print("x0 shape:", x0.shape)
 #     recons.append(x.reshape((ny, nx)))
 
 #reconstruct the whole stack at once
-(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=Live_parameters.Iteration_number, SOp=Sop, tol=Live_parameters.Tolerance,show=True)
+(x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=Iteration_number, SOp=Sop, tol=Tolerance,show=True)
 #un ravel the reconstructed stack
 recons = x.reshape((nl, ny, nx))
 print("reconstruction complete")
@@ -133,9 +148,8 @@ print("reconstructed image shape:", recons[0].shape)
 
 
 #save a comparison of the original and reconstructed image for each slice in the stack to a folder
-output_folder = "Volumetric/Reconstructed_images_whole"
-if not os.path.exists(output_folder):
-    os.makedirs(output_folder)
+output_folder = Output_File
+##Output file is now assumed to exist as it is being passed as an argument
 for i in range(len(recons)):
     fig, axs = plt.subplots(1, 2, figsize=(10, 5))
     axs[0].imshow(images[i], cmap='gray')

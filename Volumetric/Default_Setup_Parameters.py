@@ -6,5 +6,6 @@ Wavelet_3D = 'haar'
 Wavelet_3D_level = 5
 Percent_sampled = 0.75
 Regularization_parameter = 0.01
-Iteration_number = 500
+Iteration_number = 250
 Tolerance = 1e-6
+Output_file = "hello world"
