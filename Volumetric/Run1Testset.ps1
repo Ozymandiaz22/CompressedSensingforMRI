@@ -24,11 +24,13 @@ $rootleaf = Split-Path $root -Leaf
 $resultsLeaf = $rootleaf + ' Results'
 $resultspath = $rootparent + "\" + $resultsleaf
 
+## make the results directory for the test batch
 New-Item -Path $resultspath -ItemType Directory
 
 
 foreach ($item in $deepestDirnames) {
-    New-Item -Path "$resultspath\$item Results" -ItemType Directory
+    ##make the results directory for each set of dicoms
+        New-Item -Path "$resultspath\$item Results" -ItemType Directory
 }
 
 ### all directories have been generated
@@ -40,11 +42,28 @@ $Percent_sampled = 0.75
 $Regularization_parameter = 0.01
 $Iteration_number = 100
 $Tolerance = 1e-6
-
+$runtest = 1
+$runanal = 1
 #run for each set of dicoms
+if ($runtest -eq 1) {
 for ($i = 0; $i -lt $deepestDirnames.Count; $i++) {
     $currentpath = $deepestDirs[$i]
     $currentdirname = $deepestDirnames[$i]
     $currentoutput = "$resultspath\$currentdirname Results"
     & python .\Volumetric\Volumetric_wholedata.py $currentpath $target_size $Wavelet_name $Wavelet_level $Percent_sampled $Regularization_parameter $Iteration_number $Tolerance $currentoutput
+}
+}
+
+###now run analysis script for reach results directory, getting snr measurements and difference images
+if ($runanal -eq 1) {
+foreach ($item in $deepestDirnames) {
+    ##grab the results directory for each set of dicoms
+    $currentinput = "$resultspath\$item Results"
+    #define a new directory to store the analysis results
+    New-Item -Path "$resultspath\$item Analysis" -ItemType Directory
+    New-Item -Path "$resultspath\$item Analysis\Difference_Images" -ItemType Directory
+    ##run the analysis script with the input directory as the results directory and the output directory as the analysis directory
+    & python .\Volumetric\SNR_measurments.py $currentinput "$resultspath\$item Analysis"
+    & python .\Volumetric\Difference_images.py $currentinput "$resultspath\$item Analysis\Difference_Images"
+}
 }

@@ -1,3 +1,5 @@
+import sys
+
 import matplotlib.pyplot as plt
 import numpy as np
 import sigpy as sp
@@ -13,35 +15,34 @@ import bm3d
 ##for mat should be original_{i}.bmp and reconstructed_{i}.bmp where i is the slice number
 ##keep going until no more bitmaps are found, and store the images in a list of numpy arrays
 ##import them as black and white images, so they are 2D arrays of pixel values
+filepath = sys.argv[1]
+outputpath = sys.argv[2]
 
-Folderpath = "Volumetric/Reconstructed_images_whole"
+#seeks to do analysis on the generated data from Volumetric Wholedata
 recons = []
 originals = []
-keepgoing = True
 
-while keepgoing:
-    i = len(recons)
-    try:
-        file = open(f"{Folderpath}/reconstructed_{i}.bmp", "rb")
-        reconstructed_image = Image.open(file)
-        reconstructed_image = np.array(reconstructed_image)
-        recons.append(reconstructed_image)
-        file.close()
-        file = open(f"{Folderpath}/original_{i}.bmp", "rb")
-        original_image = Image.open(file)
-        original_image = np.array(original_image)
-        originals.append(original_image)
-        file.close()
-    except FileNotFoundError:
-        keepgoing = False
+# Get all files in the directory
+files = sorted(os.listdir(filepath))
+
+# Parse files to find reconstructed and original bitmaps
+for filename in files:
+    if filename.endswith('.bmp'):
+        full_path = os.path.join(filepath, filename)
+        if 'reconstructed_' in filename:
+            file = open(full_path, "rb")
+            reconstructed_image = Image.open(file).convert('L')
+            reconstructed_image = np.array(reconstructed_image)
+            recons.append(reconstructed_image)
+            file.close()
+        elif 'original_' in filename:
+            file = open(full_path, "rb")
+            original_image = Image.open(file).convert('L')
+            original_image = np.array(original_image)
+            originals.append(original_image)
+            file.close()
 
 
-##turn images to grayscale if they are not already
-for i in range(len(recons)):
-    if len(recons[i].shape) == 3:
-        recons[i] = np.mean(recons[i], axis=2)
-    if len(originals[i].shape) == 3:
-        originals[i] = np.mean(originals[i], axis=2)
 
 #genrate the difference images
 difference_images = []
@@ -52,8 +53,6 @@ for i in range(len(recons)):
     #for each recon and original image, normalise the difference image by the mean of each image
     mean_recon = np.mean(recons[i])
     mean_original = np.mean(originals[i])
-    print(f"Mean of reconstructed image {i}: {mean_recon}")
-    print(f"Mean of original image {i}: {mean_original}")
     if mean_recon == 0:
         mean_recon = 1
     if mean_original == 0:
@@ -62,10 +61,9 @@ for i in range(len(recons)):
     normalised_difference_images.append(normalised_difference_image)
 
 #save the difference images to a folder
-output_folder = "Volumetric/Difference_images"
-if not os.path.exists(output_folder):
-    os.makedirs(output_folder)
+if not os.path.exists(outputpath):
+    os.makedirs(outputpath)
 for i in range(len(difference_images)):
-    plt.imsave(f"{output_folder}/difference_{i}.bmp", difference_images[i], cmap='gray')
+    plt.imsave(f"{outputpath}/difference_{i}.bmp", difference_images[i], cmap='gray')
 for i in range(len(normalised_difference_images)):
-    plt.imsave(f"{output_folder}/normalised_difference_{i}.bmp", normalised_difference_images[i], cmap='gray')
+    plt.imsave(f"{outputpath}/normalised_difference_{i}.bmp", normalised_difference_images[i], cmap='gray')
