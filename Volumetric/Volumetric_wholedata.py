@@ -9,8 +9,7 @@ import pydicom as dicom
 import os
 
 import Live_parameters
-
-
+import radiaslsampling as rss
 
 ####Parameters to set:
 #folderpath to the dicom images
@@ -25,6 +24,8 @@ Iteration_number = Live_parameters.Iteration_number
 Regularization_Parameter = Live_parameters.Regularization_parameter
 Tolerance = Live_parameters.Tolerance
 Output_File = Live_parameters.Output_file
+
+maskfile = Live_parameters.maskfile
 
 plt.close('all')
 #this file is to do volumetric reconstruction with total variation regularization
@@ -75,6 +76,12 @@ print("kspace shape:", kspace.shape)
 #set up the basis pursuit problem to be solved with FISTA algorithm assuming the image is sparse in wavelet domain
 #our image comes to us undersampled in the fourier domain, so we need to use the fourier operator as our forward model
 #we can use the wavelet transform as our sparsifying transform, and then use the inverse wavelet transform to reconstruct the image from the wavelet coefficients
+
+radial = True
+if radial:
+    #generate sampling mask for radial sampling
+    sampling_mask = rss.generate_mprage_sampling_mask(nx, ny, nl, maskfile)
+
 
 perc_subsampling = 1 - Percent_sampled
 line_length = nx

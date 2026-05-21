@@ -9,3 +9,4 @@ Regularization_parameter = Edit_Setup_parametes.Regularization_parameter
 Iteration_number = Edit_Setup_parametes.Iteration_number
 Tolerance = Edit_Setup_parametes.Tolerance
 Output_file = Edit_Setup_parametes.Output_file
+maskfile = Edit_Setup_parametes.maskfile

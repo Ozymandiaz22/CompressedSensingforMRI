@@ -11,6 +11,7 @@ if len(sys.argv) > 1:
     Iteration_number = int(sys.argv[7])
     Tolerance = float(sys.argv[8])
     Output_file = sys.argv[9]
+    maskfile = sys.argv[10]
 else:
     import Default_Setup_Parameters
     folderpath = Default_Setup_Parameters.folderpath
@@ -22,5 +23,6 @@ else:
     Iteration_number = Default_Setup_Parameters.Iteration_number
     Tolerance = Default_Setup_Parameters.Tolerance
     Output_file = Default_Setup_Parameters.Output_file
+    maskfile = Default_Setup_Parameters.maskfile
 
 ##Pass these parameters to the Live_parameters.py file, which will be imported into the reconstruction script to be used in the reconstruction process

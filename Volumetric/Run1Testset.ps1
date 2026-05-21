@@ -23,7 +23,7 @@ $rootparent = Split-Path $root -Parent -Resolve
 $rootleaf = Split-Path $root -Leaf
 $resultsLeaf = $rootleaf + ' Results'
 $resultspath = $rootparent + "\" + $resultsleaf
-
+    
 ## make the results directory for the test batch
 New-Item -Path $resultspath -ItemType Directory
 
