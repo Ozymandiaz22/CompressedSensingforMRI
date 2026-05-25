@@ -9,13 +9,14 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # User input
-size_of_kspace = [256, 256]     # RO x PE
+size_of_kspace = [128, 128]     # RO x PE
 n_trials = 1000                 # Number of mask trials
 center_lines = 32               # Number of center-filled lines
-accel_factor = 2.5              # Acceleration factor
+acceleration_factors = [1.5, 2, 2.5, 3, 3.5]  # Acceleration factors to loop through
 gauss_sigma = 0.15              # Gaussian std-dev (fraction of PE size)
-output_folder = Path("./output/")
-show_kspace = True
+output_folder = Path("./output/nrLUT_2D_Gauss_trajectories")
+output_folder.mkdir(parents=True, exist_ok=True)
+show_kspace = False
 speed = 100000
 
 # Weighted sampling helper
@@ -83,81 +84,95 @@ best_mask = None
 best_samples = None
 best_psf = None
 
-for _ in range(n_trials):
-    np.random.seed()
-    mask, samples = line_based_pattern(size_of_kspace[0], size_of_kspace[1],
-                                       accel_factor, center_lines, gauss_sigma)
-    pe_profile = mask.mean(axis=0)
-    psf = np.abs(np.fft.fftshift(np.fft.ifft(pe_profile)))
+for accel_factor in acceleration_factors:
+    best_score = float('inf')
+    best_mask = None
+    best_samples = None
+    best_psf = None
 
-    main_lobe_width = np.sum(psf > 0.5 * np.max(psf))
-    side_lobe_level = np.max(psf[psf < np.max(psf)])
-    score = main_lobe_width + side_lobe_level
+    for _ in range(n_trials):
+        np.random.seed()
+        mask, samples = line_based_pattern(size_of_kspace[0], size_of_kspace[1],
+                                           accel_factor, center_lines, gauss_sigma)
+        pe_profile = mask.mean(axis=0)
+        psf = np.abs(np.fft.fftshift(np.fft.ifft(pe_profile)))
 
-    if score < best_score:
-        best_score = score
-        best_mask = mask
-        best_samples = samples
-        best_psf = psf
+        main_lobe_width = np.sum(psf > 0.5 * np.max(psf))
+        side_lobe_level = np.max(psf[psf < np.max(psf)])
+        score = main_lobe_width + side_lobe_level
 
-# Final selection
-mask = best_mask
-samples = best_samples
+        if score < best_score:
+            best_score = score
+            best_mask = mask
+            best_samples = samples
+            best_psf = psf
 
-AF = mask.size / np.count_nonzero(mask)
-NE = samples.shape[0]
+    # Final selection
+    mask = best_mask
+    samples = best_samples
 
-# Display
-if show_kspace:
-    import time
-    plt.figure(12)
-    plt.clf()
+    AF = mask.size / np.count_nonzero(mask)
+    NE = samples.shape[0]
 
-    plt.subplot(1, 2, 1)
-    frame_mask = np.zeros_like(mask)
-    img = plt.imshow(frame_mask, cmap='gray', vmin=0, vmax=1)
-    plt.axis('off')
-    plt.title(f'Mask\nR = {AF:.4f}\nN = {NE}', fontsize=14)
+    # Display
+    if show_kspace:
+        import time
+        plt.figure(12)
+        plt.clf()
 
-    ky = np.unique(samples[:, 0])
-    ky_idx = ky + size_of_kspace[1] // 2
-    ky_idx = ky_idx[(ky_idx >= 0) & (ky_idx < size_of_kspace[1])]
+        plt.subplot(1, 2, 1)
+        frame_mask = np.zeros_like(mask)
+        img = plt.imshow(frame_mask, cmap='gray', vmin=0, vmax=1)
+        plt.axis('off')
+        plt.title(f'Mask\nR = {AF:.4f}\nN = {NE}', fontsize=14)
 
-    for k in ky_idx:
-        frame_mask[:, int(k)] = True
+        ky = np.unique(samples[:, 0])
+        ky_idx = ky + size_of_kspace[1] // 2
+        ky_idx = ky_idx[(ky_idx >= 0) & (ky_idx < size_of_kspace[1])]
 
-        img.set_data(frame_mask)
-        plt.pause(1 / speed)
+        for k in ky_idx:
+            frame_mask[:, int(k)] = True
 
-    plt.subplot(1, 2, 2)
-    plt.plot(best_psf, 'k-', linewidth=1.5)
-    plt.title('Point Spread Function', fontsize=14)
-    plt.xlabel('Pixel')
-    plt.ylabel('Amplitude')
-    plt.grid(True)
-    plt.xlim([0, size_of_kspace[1]])
-    plt.show()
+            img.set_data(frame_mask)
+            plt.pause(1 / speed)
 
-# Export LUT
-output_folder.mkdir(parents=True, exist_ok=True)
-filename = output_folder / f"nrLUT_2D_R{AF:.2f}_{size_of_kspace[1]}.txt"
-with open(filename, 'w') as f:
-    l16, h16 = split32to16(NE)
-    f.write(f"{l16}\n{h16}\n")
-    for sample in samples:
-        f.write(f"{int(sample[0])}\n0\n")
+        plt.subplot(1, 2, 2)
+        plt.plot(best_psf, 'k-', linewidth=1.5)
+        plt.title('Point Spread Function', fontsize=14)
+        plt.xlabel('Pixel')
+        plt.ylabel('Amplitude')
+        plt.grid(True)
+        plt.xlim([0, size_of_kspace[1]])
+        plt.show()
 
-ky_min = int(samples[:, 0].min())
-ky_max = int(samples[:, 0].max())
+    # Export LUT
+    filename = output_folder / f"nrLUT_2D_Gauss_R{AF:.2f}_{size_of_kspace[1]}.txt"
+    with open(filename, 'w') as f:
+        l16, h16 = split32to16(NE)
+        f.write(f"{l16}\n{h16}\n")
+        for sample in samples:
+            f.write(f"{int(sample[0])}\n0\n")
 
-# Summary
-print('\n------- k-space summary -------')
-print(f'K-space size       : {size_of_kspace[0]} x {size_of_kspace[1]}')
-print(f'Center lines       : {center_lines}')
-print(f'Acceleration       : {AF:.2f}')
-print(f'Encodes (lines)    : {NE}')
-print(f'ky range           : {ky_min} to {ky_max}')
-print(f'Gaussian sigma     : {gauss_sigma:.2f} ({100 * gauss_sigma:.1f}% of PE size)')
-print(f'Trials run         : {n_trials}')
-print(f'Best score         : {best_score:.3f}')
-print(f'Output file        : {filename}\n')
+    ky_min = int(samples[:, 0].min())
+    ky_max = int(samples[:, 0].max())
+
+    # Summary
+    print('\n------- k-space summary -------')
+    print(f'K-space size       : {size_of_kspace[0]} x {size_of_kspace[1]}')
+    print(f'Center lines       : {center_lines}')
+    print(f'Acceleration       : {AF:.2f}')
+    print(f'Encodes (lines)    : {NE}')
+    print(f'ky range           : {ky_min} to {ky_max}')
+    print(f'Gaussian sigma     : {gauss_sigma:.2f} ({100 * gauss_sigma:.1f}% of PE size)')
+    print(f'Trials run         : {n_trials}')
+    print(f'Best score         : {best_score:.3f}')
+    print(f'Output file        : {filename}\n')
+
+    # Save bitmap image
+    trajectoryImage = np.zeros((size_of_kspace[1], size_of_kspace[0]), dtype=np.uint8)
+    ky_idx = samples[:, 0] + size_of_kspace[1] // 2
+    for ky in ky_idx:
+        if 0 <= ky < size_of_kspace[1]:
+            trajectoryImage[:, int(ky)] = 255
+    plt.imsave(output_folder / f'nrLUT_2D_Gauss_R{AF:.2f}_pct{100*NE/(size_of_kspace[0]*size_of_kspace[1]):.1f}.bmp',
+               trajectoryImage, cmap='gray', format='bmp')

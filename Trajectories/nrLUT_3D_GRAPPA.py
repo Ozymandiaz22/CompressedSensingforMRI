@@ -11,22 +11,22 @@ import matplotlib.pyplot as plt
 # User input
 size_of_kspace = [128, 128]        # ky x kz
 acs_size = [25, 25]                # Fully sampled ACS region [ky, kz]
-Ry = 2                             # Undersampling factor in ky
-Rz = 2                             # Undersampling factor in kz
-output_folder = Path("./output/")  # Output folder
+undersampling_factors = [(1, 1), (2, 2), (3, 3), (4, 4), (5, 5)]  # (Ry, Rz) pairs
+output_folder = Path("./output/nrLUT_3D_GRAPPA_trajectories")  # Output folder
+output_folder.mkdir(parents=True, exist_ok=True)
+show_kspace = False                # Visualize mask (True/False)
 
-show_kspace = True                # Visualize mask (True/False)
 
-# Ensure Ry and Rz are integers
-Ry_orig, Rz_orig = Ry, Rz
-Ry, Rz = round(Ry), round(Rz)
-if Ry != Ry_orig:
-    print(f'INFO: Ry rounded from {Ry_orig:.1f} to {Ry}.')
-if Rz != Rz_orig:
-    print(f'INFO: Rz rounded from {Rz_orig:.1f} to {Rz}.')
 
 # GRAPPA-style 3D pattern generator
 def grappa3D_pattern(size_of_kspace, Ry, Rz, ACSdim):
+    # Ensure Ry and Rz are integers
+    Ry_orig, Rz_orig = Ry, Rz
+    Ry, Rz = round(Ry), round(Rz)
+    if Ry != Ry_orig:
+        print(f'INFO: Ry rounded from {Ry_orig:.1f} to {Ry}.')
+    if Rz != Rz_orig:
+        print(f'INFO: Rz rounded from {Rz_orig:.1f} to {Rz}.')
     ky_dim, kz_dim = size_of_kspace
     mask = np.zeros((ky_dim, kz_dim), dtype=bool)
 
@@ -68,41 +68,51 @@ def split32to16(int32_value):
         low16 = low16_unsigned
     return low16, high16
 
-# Generate 3D GRAPPA mask
-mask, samples = grappa3D_pattern(size_of_kspace, Ry, Rz, acs_size)
+for Ry, Rz in undersampling_factors:
 
-# Summary
-AF = mask.size / np.count_nonzero(mask)
-NE = samples.shape[0]
-file_name = output_folder / f"nrLUT_3D_GRAPPA_R{AF:.2f}_{size_of_kspace[0]}x{size_of_kspace[1]}.txt"
+    # Generate 3D GRAPPA mask
+    mask, samples = grappa3D_pattern(size_of_kspace, Ry, Rz, acs_size)
 
-ky_min, kz_min = samples.min(axis=0)
-ky_max, kz_max = samples.max(axis=0)
+    # Summary
+    AF = mask.size / np.count_nonzero(mask)
+    NE = samples.shape[0]
+    file_name = output_folder / f"nrLUT_3D_GRAPPA_R{AF:.2f}_{size_of_kspace[0]}x{size_of_kspace[1]}.txt"
 
-print('\n------- GRAPPA 3D K-space summary -------')
-print(f'K-space size               : {size_of_kspace[0]} x {size_of_kspace[1]}')
-print(f'ACS size                   : {acs_size[0]} x {acs_size[1]}')
-print(f'Undersampling              : {Ry} x {Rz}')
-print(f'Effective acceleration     : {AF:.2f}')
-print(f'Encodes (lines)            : {NE}')
-print(f'ky range: {ky_min} to {ky_max}')
-print(f'kz range: {kz_min} to {kz_max}')
-print(f'Output file                : {file_name}\n')
+    ky_min, kz_min = samples.min(axis=0)
+    ky_max, kz_max = samples.max(axis=0)
 
-# Display a slice of the mask (optional)
-if show_kspace:
-    plt.figure(figsize=(6, 6))
-    plt.imshow(mask, cmap='gray')
-    plt.axis('off')
-    plt.title(f'GRAPPA 3D k-space \n R = {AF:.2f} \n N = {NE}', fontsize=14)
-    plt.show()
+    print('\n------- GRAPPA 3D K-space summary -------')
+    print(f'K-space size               : {size_of_kspace[0]} x {size_of_kspace[1]}')
+    print(f'ACS size                   : {acs_size[0]} x {acs_size[1]}')
+    print(f'Undersampling              : {Ry} x {Rz}')
+    print(f'Effective acceleration     : {AF:.2f}')
+    print(f'Encodes (lines)            : {NE}')
+    print(f'ky range: {ky_min} to {ky_max}')
+    print(f'kz range: {kz_min} to {kz_max}')
+    print(f'Output file                : {file_name}\n')
 
-# Export LUT
-output_folder.mkdir(parents=True, exist_ok=True)
-with open(file_name, 'w') as f:
-    l16, h16 = split32to16(NE)
-    f.write(f"{l16}\n")
-    f.write(f"{h16}\n")
-    for sample in samples:
-        f.write(f"{sample[0]}\n")
-        f.write(f"{sample[1]}\n")
+    # Display a slice of the mask (optional)
+    if show_kspace:
+        plt.figure(figsize=(6, 6))
+        plt.imshow(mask, cmap='gray')
+        plt.axis('off')
+        plt.title(f'GRAPPA 3D k-space \n R = {AF:.2f} \n N = {NE}', fontsize=14)
+        plt.show()
+
+    # Export LUT
+    with open(file_name, 'w') as f:
+        l16, h16 = split32to16(NE)
+        f.write(f"{l16}\n")
+        f.write(f"{h16}\n")
+        for sample in samples:
+            f.write(f"{sample[0]}\n")
+            f.write(f"{sample[1]}\n")
+
+    # Save bitmap image
+    trajectoryImage = np.zeros((size_of_kspace[0], size_of_kspace[1]), dtype=np.uint8)
+    for ky, kz in samples:
+        if (0 <= ky + size_of_kspace[0]//2 < size_of_kspace[0] and
+            0 <= kz + size_of_kspace[1]//2 < size_of_kspace[1]):
+            trajectoryImage[kz + size_of_kspace[1]//2, ky + size_of_kspace[0]//2] = 255
+    plt.imsave(output_folder / f'nrLUT_3D_GRAPPA_R{AF:.2f}_{size_of_kspace[0]}x{size_of_kspace[1]}.bmp',
+               trajectoryImage, cmap='gray', format='bmp')

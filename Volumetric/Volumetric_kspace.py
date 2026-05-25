@@ -24,16 +24,13 @@ Iteration_number = Live_parameters.Iteration_number
 Regularization_Parameter = Live_parameters.Regularization_parameter
 Tolerance = Live_parameters.Tolerance
 Output_File = Live_parameters.Output_file
+sampling_regime = Live_parameters.sampling_regime
 
-maskfile = Live_parameters.maskfile
+print("Wavelet_3D:", Wavelet_3D)
 
 plt.close('all')
 #this file is to do volumetric reconstruction with total variation regularization
-#find path of all dicom files in the folder
 files = [str(folderpath + "/" + f  ) for f in os.listdir(folderpath) if f.endswith('.MRD')]
-##previous dicom implementation
-# dicoms = [dicom.dcmread(x) for x in files]
-# images = [d.pixel_array for d in dicoms]
 
 ##read mrd file using evom3dread_converted
 import evom3dread_converted as evom3d
@@ -82,7 +79,7 @@ new_kspace[dst_l0:dst_l0+(src_l1-src_l0), dst_y0:dst_y0+(src_y1-src_y0), dst_x0:
 
 # replace kspace with resized version and set dimensions
 kspace = new_kspace
-print("kspace shape after resizing:", kspace.shape)
+#print("kspace shape after resizing:", kspace.shape)
 #find the next power of 2 from the length of the array
 #find the next power of two
 
@@ -99,7 +96,6 @@ Fop_3D_ifft = pylops.signalprocessing.FFTND(dims=(nl, ny, nx),ifftshift_before=T
 #our image comes to us undersampled in the fourier domain, so we need to use the fourier operator as our forward model
 #we can use the wavelet transform as our sparsifying transform, and then use the inverse wavelet transform to reconstruct the image from the wavelet coefficients
 
-sampling_regime = "1d"
 if sampling_regime == "1d":
     perc_subsampling =  Percent_sampled
     line_length = nx
@@ -115,7 +111,7 @@ if sampling_regime == "1d":
     samples = samples.flatten()
     samples = list(samples)
     #restriction operator selects samples not to take, so we need to take the complement of the samples we want to take
-    print(len(samples))
+    #print(len(samples))
 elif sampling_regime == "2d":
     ##there is an nx by ny grid, you are sampling a percentage of distinct points on this grid, and you are sampling the same points for each slice in the stack
     ##this should be done as a 2d gaussian sampling pattern
@@ -135,7 +131,7 @@ elif sampling_regime == "2d":
     samples = list(samples)
     #restriction operator selects samples not to take, so we need to take the complement of the samples we want to take
     #samples = list(all_samples - set(samples))
-    print(len(samples))
+    #print(len(samples))
 
 
 
@@ -153,7 +149,7 @@ for s in samples:
 # show the first slice of the sampling mask (samples=1, missing=0)
 plt.imshow(sampling_mask[0], cmap='gray', origin='lower')
 plt.title('Sampling Mask for First Slice')
-plt.imsave(f"Volumetric/sampling_mask.png", sampling_mask[0], cmap='gray')
+plt.imsave(f"{Output_File}/sampling_mask.png", sampling_mask[0], cmap='gray')
 plt.close()
 
 #restriction obertor selects samples from the fourier domain
@@ -171,16 +167,14 @@ Op = Rop * Fop_3D
 #forward operator generated
 y = Rop * np.asarray(kspace).ravel('K')
 #measuremnents in the fourier domain generated in (nl*nx*samples,) shape
-print("y shape:", y.shape)
+
 #we can now use the FISTA algorithm to solve the optimization problem
 epsilon = Regularization_Parameter
 x0 = np.zeros((nl ,ny, nx), dtype=np.complex128).ravel('K')
 #we will solve the problem for each image in the stack
 recons = []
 #print shapes of all the variables
-print("Op shape:", Op.shape)
-print("Sop shape:", Sop.shape)
-print("x0 shape:", x0.shape)
+
 
 #images = kspace * Fop_3D.H * (1/(nx*ny*nl))
 images = Fop_3D_ifft.H * kspace.ravel('K')
@@ -196,24 +190,20 @@ images = images.reshape((nl, ny, nx))
 (x, niter, cost) = pylops.optimization.sparsity.fista(Op, y, eps=epsilon, x0=x0, niter=Iteration_number, SOp=Sop, tol=Tolerance,show=True)
 #un ravel the reconstructed stack
 recons = x.reshape((nl, ny, nx))
-print("reconstruction complete")
-print("reconstructed image shape:", recons[0].shape)
+
 
 ##generate original images from the k space data by applying the inverse fourier transform to each slice in the stack
 ##3d ifft
 
 
-print((images.shape))
-print("original image dtype:", images.dtype)
+
 images = np.asarray(images)
 images = images.astype(np.complex128)
 kspace = np.asarray(kspace)
 kspace = kspace.astype(np.complex128) 
-print("original image dtype:", images.dtype)
-print("original image shape:", images[0].shape) 
-print(images[0])
+
 ##convert scaled linear operator to a numpy array
-print("reconslength:", len(recons))
+
 
 difference_images = []
 normalised_difference_images = []
@@ -233,8 +223,7 @@ for i in range(len(recons)):
 ####masked k spaces
 masked_kspace = kspace * (sampling_mask)
 
-#save a comparison of the original and reconstructed image for each slice in the stack to a folder
-output_folder = Output_File
+
 ##Output file is now assumed to exist as it is being passed as an argument
 for i in range(len(recons)):
     fig, axs = plt.subplots(2, 3, figsize=(12, 8))
@@ -256,8 +245,9 @@ for i in range(len(recons)):
     axs[1, 2].imshow(np.log(np.abs(masked_kspace[i]) + 1e-10), cmap='gray')
     axs[1, 2].set_title('Masked K-Space')
     axs[1, 2].axis('off')
-    plt.savefig(f"{output_folder}/comparison_{i}.png")
+    plt.savefig(f"{Output_File}/comparison_{i}.png")
     plt.close(fig)
-    plt.imsave(f"{output_folder}/reconstructed_{i}.bmp", np.abs(recons[i]), cmap='gray')
-    plt.imsave(f"{output_folder}/original_{i}.bmp", np.abs(images[i]), cmap='gray')
-    print(f"Saved comparison image for slice {i} to {output_folder}/comparison_{i}.png")
+    plt.imsave(f"{Output_File}/reconstructed_{i}.bmp", np.abs(recons[i]), cmap='gray')
+    plt.imsave(f"{Output_File}/original_{i}.bmp", np.abs(images[i]), cmap='gray')
+    plt.imsave(f"{Output_File}/normalized_difference_{i}.bmp", np.abs(normalised_difference_images[i]), cmap='gray')
+    #print(f"Saved comparison image for slice {i} to {Output_File}/comparison_{i}.png")

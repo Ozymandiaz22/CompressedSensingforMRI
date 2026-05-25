@@ -1,0 +1,2 @@
+Folder has 1 call function, with all the sampling methods, that gets used by the program to generate the correct sampling mask
+it has a case statement to find the correct sampling function and then use it to generate the mask

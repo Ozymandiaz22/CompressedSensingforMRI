@@ -2,6 +2,11 @@ import sys
 
 #input list of parametes from command line, if no parameters given, use default parameters from Default_Setup_Parameters.py
 if len(sys.argv) > 1:
+    ##print the sys.argv list to check the parameters being passed in, and the index
+    print("Command line arguments:", sys.argv)
+
+
+
     folderpath = sys.argv[1]
     target_size = int(sys.argv[2])
     Wavelet_3D = sys.argv[3]
@@ -11,7 +16,7 @@ if len(sys.argv) > 1:
     Iteration_number = int(sys.argv[7])
     Tolerance = float(sys.argv[8])
     Output_file = sys.argv[9]
-    maskfile = sys.argv[10]
+    sampling_regime = sys.argv[10]
 else:
     import Default_Setup_Parameters
     folderpath = Default_Setup_Parameters.folderpath
@@ -23,6 +28,6 @@ else:
     Iteration_number = Default_Setup_Parameters.Iteration_number
     Tolerance = Default_Setup_Parameters.Tolerance
     Output_file = Default_Setup_Parameters.Output_file
-    maskfile = Default_Setup_Parameters.maskfile
+    sampling_regime = Default_Setup_Parameters.sampling_regime
 
 ##Pass these parameters to the Live_parameters.py file, which will be imported into the reconstruction script to be used in the reconstruction process

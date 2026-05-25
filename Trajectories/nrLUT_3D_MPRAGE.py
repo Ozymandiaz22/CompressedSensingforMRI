@@ -29,11 +29,12 @@ if len(sys.argv) > 1:
 else:
     sizeOfKspace = [192, 192]               # Size of k-space
     sizeOfCenter = [32, 32]                 # Size of center-filled region
-    xFactor = 4                             # Desired acceleration factor (1 or higher)
+    acceleration_factors = [1.5, 2, 2.5, 3, 3.5]  # Acceleration factors to loop through
     variableDensity = 0.8                   # Variable density (0 = uniform, >0 = more samples in the center, typical value = 0.8)
     eShutter = True                         # Elliptical shutter (True/False)
     mprageShotLength = 64                   # MPRAGE shot length
-    outputFolder = "./output/"              # Output folder
+    baseOutputFolder = "./output/nrLUT_3D_MPRAGE_trajectories"              # Output folder
+    os.makedirs(baseOutputFolder, exist_ok=True)
 
 
 showMask = False                        # Show k-space filling
@@ -43,7 +44,9 @@ gifFrameDelay = 0.0001                  # Seconds per frame animated gif
 gifFile = 'mprageKspaceFilling.gif'     # Gif file name
 nShotsFullGif = 2                       # Number of shots to save fully
 
-os.makedirs(outputFolder, exist_ok=True)
+for xFactor in acceleration_factors:
+    outputFolder = os.path.join(baseOutputFolder, f"R{xFactor:.2f}")
+    os.makedirs(outputFolder, exist_ok=True)
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -149,7 +152,8 @@ mask, samples, sampleMaskOut, nCalib, nRandom = poissonPattern(
     SizeY=sizeOfKspace[0], SizeZ=sizeOfKspace[1],
     AccelFactor=xFactor, VariableDensity=variableDensity,
     CalibRegY=sizeOfCenter[0], CalibRegZ=sizeOfCenter[1],
-    Elliptical=eShutter
+    Elliptical=eShutter,
+    RandSeed=int(xFactor * 10000) % (2**31)
 )
 
 # Report parameters
@@ -226,7 +230,7 @@ if showMask:
 
     if gifSave:
         imageio.mimsave(gifFile, frames, duration=gifFrameDelay)
-        
+
     plt.show()
 
 # Export the k-space file
@@ -240,6 +244,15 @@ with open(filename, 'w') as f:
     for sel in shotList:
         for i in sel:
             f.write(f"{samples[i, 0]}, {samples[i, 1]}\n")
-            #f.write(f"{samples[i, 1]}\n")
+
+# Save bitmap image
+trajectoryImage = np.zeros((sizeOfKspace[1], sizeOfKspace[0]), dtype=np.uint8)
+for i, s in enumerate(samples):
+    ky = int(s[0] + sizeOfKspace[0] // 2)
+    kz = int(s[1] + sizeOfKspace[1] // 2)
+    if 0 <= ky < sizeOfKspace[0] and 0 <= kz < sizeOfKspace[1]:
+        trajectoryImage[kz, ky] = 255
+plt.imsave(os.path.join(outputFolder, f'nrLUT_MPRAGE_R{AF:.2f}_S{mprageShotLength}.bmp'),
+           trajectoryImage, cmap='gray', format='bmp')
 
 

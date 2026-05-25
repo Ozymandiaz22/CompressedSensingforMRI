@@ -14,15 +14,15 @@ import matplotlib.pyplot as plt
 import os
 
 # Initialization
-dimy = 64
-dimz = 64
+dimy = 128
+dimz = 128
 order = 1
 angleNr = 10
-display = True
+display = False
 outputdir = './output/'
 exportList = True
 reps = 1
-viewSpeed = 1000
+viewSpeed = 1000000
 
 tinyGoldenAngles = [111.24611, 68.75388, 49.75077, 38.97762, 32.03967,
                     27.19840, 23.62814, 20.88643, 18.71484, 16.95229]
@@ -32,8 +32,11 @@ numPointsTarget = dimy * dimz
 numSamplesPerSpoke = 2 * max(dimy, dimz)
 t = np.linspace(-1, 1, numSamplesPerSpoke)
 
-ry = dimy / 2
-rz = dimz / 2
+##scale of the inscribed ellipse
+ellipscale = 1.1
+
+ry = dimy / (2/ellipscale)
+rz = dimz / (2/ellipscale)
 
 kSpaceList = []
 angle = 0
@@ -139,3 +142,10 @@ print(f'ky range            : {ky_min} to {ky_max}')
 print(f'kz range            : {kz_min} to {kz_max}')
 print(f'Output file         : {filename}')
 print('----------------------------------\n')
+
+#save a bitmap of the k-space trajectory for reference, with the sapled points white and the unsampled points black
+trajectoryImage = np.zeros((dimz, dimy), dtype=np.uint8)
+for y, z in kSpaceArray:
+    if 0 <= y + dimy // 2 < dimy and 0 <= z + dimz // 2 < dimz:
+        trajectoryImage[z + dimz // 2, y + dimy // 2] = 255
+plt.imsave(os.path.join(outputdir, f'exLUT_radial_trajectory_y{dimy}_z{dimz}_a{round(tinyGoldenAngles[angleNr-1],2)}_r{reps}.png'), trajectoryImage, cmap='gray')

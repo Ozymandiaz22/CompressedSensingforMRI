@@ -15,9 +15,12 @@ import bm3d
 ##for mat should be original_{i}.bmp and reconstructed_{i}.bmp where i is the slice number
 ##keep going until no more bitmaps are found, and store the images in a list of numpy arrays
 ##import them as black and white images, so they are 2D arrays of pixel values
-filepath = sys.argv[1]
-outputpath = sys.argv[2]
 
+if len(sys.argv) > 1:
+    filepath = sys.argv[1]
+    outputpath = sys.argv[2]
+else:
+    filepath = 
 #seeks to do analysis on the generated data from Volumetric Wholedata
 recons = []
 originals = []
@@ -51,8 +54,8 @@ for i in range(len(recons)):
     difference_image = np.abs(recons[i] - originals[i])
     difference_images.append(difference_image)
     #for each recon and original image, normalise the difference image by the mean of each image
-    mean_recon = np.mean(recons[i])
-    mean_original = np.mean(originals[i])
+    mean_recon = np.mean(np.abs(recons[i]))
+    mean_original = np.mean(np.abs(originals[i]))
     if mean_recon == 0:
         mean_recon = 1
     if mean_original == 0:

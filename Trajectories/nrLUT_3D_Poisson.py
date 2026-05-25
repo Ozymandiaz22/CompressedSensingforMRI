@@ -13,12 +13,12 @@ from pathlib import Path
 # User input
 size_of_kspace = [192, 192]
 size_of_center = [32, 32]
-accel_factor = 3
+acceleration_factors = [1.5, 2, 2.5, 3, 3.5]  # Acceleration factors to loop through
 elliptical_shutter = True
 variable_density = 0.8
-output_folder = Path("./output/")
-
-show_mask = True
+output_folder = Path("./output/nrLUT_3D_Poisson_trajectories")
+output_folder.mkdir(parents=True, exist_ok=True)
+show_mask = False
 speed = 100000
 
 # Split 32-bit to 2x 16-bit
@@ -114,59 +114,67 @@ def poisson_pattern(SizeY, SizeZ, VariableDensity, AccelFactor, Elliptical,
 
     return mask, samples
 
-# Generate the mask and samples
-mask, samples = poisson_pattern(
-    SizeY=size_of_kspace[0],
-    SizeZ=size_of_kspace[1],
-    VariableDensity=variable_density,
-    AccelFactor=accel_factor,
-    Elliptical=elliptical_shutter,
-    RandSeed=11235,
-    CalibRegY=size_of_center[0],
-    CalibRegZ=size_of_center[1]
-)
+for accel_factor in acceleration_factors:
+    # Generate the mask and samples
+    mask, samples = poisson_pattern(
+        SizeY=size_of_kspace[0],
+        SizeZ=size_of_kspace[1],
+        VariableDensity=variable_density,
+        AccelFactor=accel_factor,
+        Elliptical=elliptical_shutter,
+        RandSeed=int(accel_factor * 10000) % (2**31),
+        CalibRegY=size_of_center[0],
+        CalibRegZ=size_of_center[1]
+    )
 
-AF = mask.size / np.count_nonzero(mask)
-NE = samples.shape[0]
+    AF = mask.size / np.count_nonzero(mask)
+    NE = samples.shape[0]
 
-# Show mask
-if show_mask:
-    plt.figure(11)
-    frame_mask = np.zeros_like(mask)
-    img = plt.imshow(frame_mask, cmap='gray', vmin=0, vmax=1)
-    plt.axis('off')
-    plt.title([f'Effective acceleration factor = {AF:.2f}',
-               f'Number of samples = {NE}'], fontsize=12)
-    ky = samples[:, 0] + size_of_kspace[0] // 2
-    kz = samples[:, 1] + size_of_kspace[1] // 2
-    for k in range(NE):
-        frame_mask[kz[k]-1, ky[k]-1] = True
-        img.set_data(frame_mask)
-        plt.pause(1 / speed)
-    plt.show()
+    # Show mask
+    if show_mask:
+        plt.figure(11)
+        frame_mask = np.zeros_like(mask)
+        img = plt.imshow(frame_mask, cmap='gray', vmin=0, vmax=1)
+        plt.axis('off')
+        plt.title([f'Effective acceleration factor = {AF:.2f}',
+                   f'Number of samples = {NE}'], fontsize=12)
+        ky = samples[:, 0] + size_of_kspace[0] // 2
+        kz = samples[:, 1] + size_of_kspace[1] // 2
+        for k in range(NE):
+            frame_mask[kz[k]-1, ky[k]-1] = True
+            img.set_data(frame_mask)
+            plt.pause(1 / speed)
+        plt.show()
 
-# Export LUT
-output_folder.mkdir(parents=True, exist_ok=True)
-shutter = 'E' if elliptical_shutter else 'S'
-filename = output_folder / f"nrLUT_3D_R{AF:.2f}_M{size_of_kspace[0]}x{size_of_kspace[1]}{shutter}.txt"
-with open(filename, 'w') as f:
-    l16, h16 = split32to16(NE)
-    f.write(f"{l16}\n{h16}\n")
-    for s in samples:
-        f.write(f"{int(s[0])}\n{int(s[1])}\n")
+    # Export LUT
+    shutter = 'E' if elliptical_shutter else 'S'
+    filename = output_folder / f"nrLUT_3D_Poisson_R{AF:.2f}_M{size_of_kspace[0]}x{size_of_kspace[1]}{shutter}.txt"
+    with open(filename, 'w') as f:
+        l16, h16 = split32to16(NE)
+        f.write(f"{l16}\n{h16}\n")
+        for s in samples:
+            f.write(f"{int(s[0])}\n{int(s[1])}\n")
 
+    ky_min, kz_min = samples.min(axis=0)
+    ky_max, kz_max = samples.max(axis=0)
 
-ky_min, kz_min = samples.min(axis=0)
-ky_max, kz_max = samples.max(axis=0)
+    # Print k-space summary
+    print("\n------- k-space summary -------")
+    print(f"K-space size       : {size_of_kspace[0]} x {size_of_kspace[1]}")
+    print(f"Center region      : {size_of_center[0]} x {size_of_center[1]}")
+    print(f"Acceleration       : {AF:.2f}")
+    print(f"Elliptical shutter : {elliptical_shutter}")
+    print(f"Variable density   : {variable_density}")
+    print(f"Encodes (lines)    : {NE}")
+    print(f'ky range           : {ky_min} to {ky_max}')
+    print(f'kz range           : {kz_min} to {kz_max}')
+    print(f"Output file        : {filename}\n")
 
-# Print k-space summary
-print("\n------- k-space summary -------")
-print(f"K-space size       : {size_of_kspace[0]} x {size_of_kspace[1]}")
-print(f"Center region      : {size_of_center[0]} x {size_of_center[1]}")
-print(f"Acceleration       : {AF:.2f}")
-print(f"Elliptical shutter : {elliptical_shutter}")
-print(f"Variable density   : {variable_density}")
-print(f"Encodes (lines)    : {NE}")
-print(f'ky range           : {ky_min} to {ky_max}')
-print(f'kz range           : {kz_min} to {kz_max}')
-print(f"Output file        : {filename}\n")
+    # Save bitmap image
+    trajectoryImage = np.zeros((size_of_kspace[0], size_of_kspace[1]), dtype=np.uint8)
+    for ky, kz in samples:
+        if (0 <= ky + size_of_kspace[0]//2 < size_of_kspace[0] and
+            0 <= kz + size_of_kspace[1]//2 < size_of_kspace[1]):
+            trajectoryImage[kz + size_of_kspace[1]//2, ky + size_of_kspace[0]//2] = 255
+    plt.imsave(output_folder / f'nrLUT_3D_Poisson_R{AF:.2f}_M{size_of_kspace[0]}x{size_of_kspace[1]}{shutter}.bmp',
+               trajectoryImage, cmap='gray', format='bmp')
