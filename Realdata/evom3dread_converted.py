@@ -118,6 +118,7 @@ def mread(datapath, expt_to_show=None):
 # --- Example usage ---
 if __name__ == '__main__':
     import sys
+    print (sys.argv)
     path = sys.argv[1] if len(sys.argv) > 1 else 'yourfile.MRD'
     mrd = mread(path)
 

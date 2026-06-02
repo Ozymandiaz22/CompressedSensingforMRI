@@ -14,8 +14,8 @@ import matplotlib.pyplot as plt
 import os
 
 # Initialization
-dimy = 128
-dimz = 128
+dimy = 150
+dimz = 150
 order = 1
 angleNr = 10
 display = False

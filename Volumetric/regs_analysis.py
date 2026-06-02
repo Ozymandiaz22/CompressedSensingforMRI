@@ -22,6 +22,11 @@ for f in os.listdir(filepath):
         Regs_list.append(f.split(' ')[1])
         Regs_paths.append(os.path.join(filepath, f))
 
+#reorder the regslist by values
+Regs_list = sorted(Regs_list, key=lambda x: float(x))
+#reoder the regspaths according to the new order of regslist
+Regs_paths = [x for _, x in sorted(zip(Regs_list, Regs_paths), key=lambda pair: float(pair[0]))]
+
 origs_whole = []
 recons_whole = []
 
@@ -76,13 +81,13 @@ print("PSNR means: ", psnr_means)
 #plot the ssim and psnr means against the reg values
 plt.figure(figsize=(10, 5))
 plt.subplot(1, 2, 1)
-plt.plot(Regs_list, ssim_means, marker='o')
-plt.xscale('log')
+plt.plot([float(x) for x in Regs_list], ssim_means, marker='o')
+plt.xscale('log')  # Set x-ticks to be the reg values
 plt.xlabel('Regularization Parameter')
 plt.ylabel('Mean SSIM')
 plt.title('Mean SSIM vs Regularization Parameter')
 plt.subplot(1, 2, 2)
-plt.plot(Regs_list, psnr_means, marker='o')
+plt.plot([float(x) for x in Regs_list], psnr_means, marker='o')
 plt.xscale('log')
 plt.xlabel('Regularization Parameter')
 plt.ylabel('Mean PSNR')

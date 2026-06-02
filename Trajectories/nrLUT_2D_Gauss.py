@@ -9,10 +9,10 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # User input
-size_of_kspace = [128, 128]     # RO x PE
+size_of_kspace = [150, 150]     # RO x PE
 n_trials = 1000                 # Number of mask trials
 center_lines = 32               # Number of center-filled lines
-acceleration_factors = [1.5, 2, 2.5, 3, 3.5]  # Acceleration factors to loop through
+acceleration_factors = np.arange(1, 3.9, 0.01)  # Acceleration factors to loop through
 gauss_sigma = 0.15              # Gaussian std-dev (fraction of PE size)
 output_folder = Path("./output/nrLUT_2D_Gauss_trajectories")
 output_folder.mkdir(parents=True, exist_ok=True)
@@ -174,5 +174,6 @@ for accel_factor in acceleration_factors:
     for ky in ky_idx:
         if 0 <= ky < size_of_kspace[1]:
             trajectoryImage[:, int(ky)] = 255
-    plt.imsave(output_folder / f'nrLUT_2D_Gauss_R{AF:.2f}_pct{100*NE/(size_of_kspace[0]*size_of_kspace[1]):.1f}.bmp',
+    sampling_pct = 100.0 * NE / size_of_kspace[1] 
+    plt.imsave(output_folder / f'nrLUT_2D_Gauss_R{AF:.2f}_pct{sampling_pct:.1f}.bmp',
                trajectoryImage, cmap='gray', format='bmp')

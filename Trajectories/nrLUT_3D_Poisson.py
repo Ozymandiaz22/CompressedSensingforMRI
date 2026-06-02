@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # User input
-size_of_kspace = [192, 192]
+size_of_kspace = [150,150]
 size_of_center = [32, 32]
-acceleration_factors = [1.5, 2, 2.5, 3, 3.5]  # Acceleration factors to loop through
+acceleration_factors = np.arange(1, 3.9, 0.01)  # Acceleration factors to loop through
 elliptical_shutter = True
 variable_density = 0.8
 output_folder = Path("./output/nrLUT_3D_Poisson_trajectories")
@@ -56,7 +56,7 @@ def poisson_pattern(SizeY, SizeZ, VariableDensity, AccelFactor, Elliptical,
     cy, cz = (SizeY + 1) / 2, (SizeZ + 1) / 2
     Y, Z = np.meshgrid(np.arange(1, SizeY+1), np.arange(1, SizeZ+1))
 
-    a, b = SizeY / 2, SizeZ / 2
+    a, b = SizeY / 1.4, SizeZ / 1.4
     R2 = ((Y - cy)/a)**2 + ((Z - cz)/b)**2
     sample_mask = np.ones((SizeZ, SizeY), dtype=bool)
     if Elliptical:
@@ -130,6 +130,8 @@ for accel_factor in acceleration_factors:
     AF = mask.size / np.count_nonzero(mask)
     NE = samples.shape[0]
 
+    sampling_pct = 100.0 * NE / (size_of_kspace[0] * size_of_kspace[1])
+
     # Show mask
     if show_mask:
         plt.figure(11)
@@ -176,5 +178,5 @@ for accel_factor in acceleration_factors:
         if (0 <= ky + size_of_kspace[0]//2 < size_of_kspace[0] and
             0 <= kz + size_of_kspace[1]//2 < size_of_kspace[1]):
             trajectoryImage[kz + size_of_kspace[1]//2, ky + size_of_kspace[0]//2] = 255
-    plt.imsave(output_folder / f'nrLUT_3D_Poisson_R{AF:.2f}_M{size_of_kspace[0]}x{size_of_kspace[1]}{shutter}.bmp',
+    plt.imsave(output_folder / f'nrLUT_3D_Poisson_R{AF:.2f}_M{size_of_kspace[0]}x{size_of_kspace[1]}{shutter}_perc{sampling_pct:.1f}.bmp',
                trajectoryImage, cmap='gray', format='bmp')

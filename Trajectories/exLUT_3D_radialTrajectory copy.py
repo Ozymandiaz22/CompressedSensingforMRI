@@ -14,12 +14,12 @@ import matplotlib.pyplot as plt
 import os
 
 # Initialization
-dimy = 128
-dimz = 128
-ellipscale = 1.2
+dimy = 150
+dimz = 150
+ellipscale = 1.4
 ry = dimy / (2/ellipscale)
 rz = dimz / (2/ellipscale)
-order = 1
+order = 2
 angleNr = 10
 display = False
 outputdir = './output/'
@@ -32,7 +32,7 @@ tinyGoldenAngles = [111.24611, 68.75388, 49.75077, 38.97762, 32.03967,
 
 rev = 1
 # repeat for different numbers of points sampled (percentage of full elliptical mask)
-samplePercents = [10, 25, 50, 75, 100]
+samplePercents = [i for i in range(30, 120, 1)]  # 1% to 100% in 1% increments
 
 # total available points in elliptical mask (used for percent calculations)
 Ygrid, Zgrid = np.meshgrid(np.arange(-dimy//2, dimy//2),

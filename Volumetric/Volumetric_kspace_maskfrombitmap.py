@@ -8,6 +8,7 @@ import pylops.optimization.sparsity
 from PIL import Image
 import pydicom as dicom
 import os
+import nibabel as nib
 
 import radiaslsampling as rss
 print(sys.argv)
@@ -20,17 +21,15 @@ if len(sys.argv) > 1:
     print("Wavelet_3D:", Wavelet_3D)
     Wavelet_3D_level = int(sys.argv[4])
     print("Wavelet_3D_level:", Wavelet_3D_level)
-    Percent_sampled = float(sys.argv[5])
-    print("Percent_sampled:", Percent_sampled)
-    Regularization_Parameter = float(sys.argv[6])
+    Regularization_Parameter = float(sys.argv[5])
     print("Regularization_Parameter:", Regularization_Parameter)
-    Iteration_number = int(sys.argv[7])
+    Iteration_number = int(sys.argv[6])
     print("Iteration_number:", Iteration_number)
-    Tolerance = float(sys.argv[8])
+    Tolerance = float(sys.argv[7])
     print("Tolerance:", Tolerance)
-    Output_File = sys.argv[9]
+    Output_File = sys.argv[8]
     print("Output_File:", Output_File)
-    mask_filepath = sys.argv[10]
+    mask_filepath = sys.argv[9]
     print("mask_filepath:", mask_filepath)
 else:
     print("Using default parameters. To specify parameters, run the script with the following arguments:")
@@ -58,7 +57,7 @@ files = [str(folderpath + "/" + f  ) for f in os.listdir(folderpath) if f.endswi
 import evom3dread_converted as evom3d
 mrd = evom3d.mread(files[0])
 data = mrd['data']
-
+print("data shape:", data.shape)   
 #extract k spce images from the data
 kspace = data[:, :, :, 0, 0, 0]
 #this should be 150x150x150 for all real data sets
@@ -167,11 +166,14 @@ mask_array = np.array(mask_image)
 # Normalize the mask to be binary (0 and 1)
 sampling_mask = mask_array > 128  # Threshold to create a binary mask
 
-##if mask is not the same size as the k space, resize it to match the k space dimensions
+##if mask is not the same size as the k space, zero pad it to match the k space dimensions
 if sampling_mask.shape != (ny, nx):
-    print(f"Resizing mask from {sampling_mask.shape} to {(ny, nx)}")
-    mask_image_resized = mask_image.resize((nx, ny), resample=Image.NEAREST)
-    sampling_mask = np.array(mask_image_resized) > 128  # Reapply threshold after resizing
+    print(f"Zero padding mask from {sampling_mask.shape} to {(ny, nx)}")
+    padded_mask = np.zeros((ny, nx), dtype=bool)
+    pad_y = (ny - sampling_mask.shape[0]) // 2
+    pad_x = (nx - sampling_mask.shape[1]) // 2
+    padded_mask[pad_y:pad_y+sampling_mask.shape[0], pad_x:pad_x+sampling_mask.shape[1]] = sampling_mask
+    sampling_mask = padded_mask
 ##stack the 2D mask to create a 3D mask with the same sampling pattern for each slice
 sampling_mask = np.stack([sampling_mask] * nl, axis=0)
 # Extract the indices of the sampled points from the 3D mask
@@ -255,6 +257,9 @@ for i in range(len(recons)):
 ####masked k spaces
 masked_kspace = kspace * (sampling_mask)
 
+###generate a nifti image of the reconstructed stack
+nifti_img = nib.Nifti1Image(abs(recons), affine=None)
+nib.save(nifti_img, f"{Output_File}/reconstructed_stack.nii")
 
 ##Output file is now assumed to exist as it is being passed as an argument
 for i in range(len(recons)):

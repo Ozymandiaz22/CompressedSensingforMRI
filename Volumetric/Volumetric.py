@@ -38,7 +38,7 @@ print("image shape:", images[0].shape)
 
 Fop = pylops.signalprocessing.FFT2D(dims=(ny, nx))
 Wop = pylops.signalprocessing.DWT(dims=ny*nx, wavelet='db6', level=1)
-Wop2D = pylops.signalprocessing.DWT2D(dims=(ny, nx), wavelet='db10', level=2)
+Wop2D = pylops.signalprocessing.DWT2D(dims=(ny, nx), wavelet='haar', level=7)
 
 kspace = [Fop * i for i in images]
 
@@ -94,6 +94,41 @@ Op = Rop * Fop
 y = [Rop * k.ravel() for k in kspace]
 #measuremnents in the fourier domain generated in (nx*samples,) shape
 print("y shape:", y[0].shape)
+
+waveletetst = Wop2D * images[16].ravel()
+waveletested = waveletetst.reshape((ny, nx))
+fig, axs = plt.subplots(1, 4, figsize=(10, 5))
+axs[0].imshow(images[16], cmap='gray')
+axs[0].set_title('Original Image')
+axs[0].axis('off')#
+axs[1].imshow(waveletested, cmap='gray')
+axs[1].set_title('Wavelet Transform of Image')
+axs[1].axis('off')
+#plot a map of the wavelet coefficients that are above a certain threshold
+threshold = 0.003 * np.max(waveletetst)
+mask = np.abs(waveletetst) > threshold
+axs[2].imshow(mask.reshape((ny, nx)), cmap='gray')
+axs[2].set_title('Mask of Wavelet Coefficients Above Threshold')
+axs[2].axis('off')
+#tight layout and show the plot
+#reconstruct the image from the wavelet coefficients that are above the threshold
+wavelet_recon = Wop2D.H * (mask * waveletetst)
+axs[3].imshow(wavelet_recon.reshape((ny, nx)), cmap='gray')
+axs[3].set_title('Reconstructed Image from Thresholded Wavelet Coefficients')
+axs[3].axis('off')
+
+plt.tight_layout()
+plt.show()
+#save the comparison image to a file
+plt.imsave(f"Volumetric/original_image.png", images[16], cmap='gray')
+wl = np.abs(waveletested)
+p_low, p_high = np.percentile(wl, (1, 99))
+waveletested_contrast = np.clip(((wl - p_low) / (p_high - p_low + 1e-8)), 0, 1) ** 0.5 * 255
+plt.imsave(f"Volumetric/wavelet_transform.png", waveletested_contrast, cmap='gray')
+plt.imsave(f"Volumetric/wavelet_mask.png", mask.reshape((ny, nx)), cmap='gray')
+
+
+
 
 #we can now use the FISTA algorithm to solve the optimization problem
 epsilon = 0.01
